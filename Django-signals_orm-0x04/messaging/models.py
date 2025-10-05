@@ -108,7 +108,6 @@
 #         """Get recent notifications for a user"""
 #         return cls.objects.filter(user=user).order_by('-created_at')[:limit]
 
-
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
@@ -117,7 +116,8 @@ import uuid
 
 class Message(models.Model):
     """
-    Model representing a message between users.
+    Model representing a message between users with threading support.
+    Supports threaded conversations through parent_message self-referential foreign key.
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     sender = models.ForeignKey(
@@ -132,6 +132,14 @@ class Message(models.Model):
         related_name='received_messages',
         help_text="User who receives the message"
     )
+    parent_message = models.ForeignKey(
+        'self',
+        on_delete=models.CASCADE,
+        related_name='replies',
+        null=True,
+        blank=True,
+        help_text="Parent message if this is a reply in a threaded conversation"
+    )
     content = models.TextField(help_text="Message content")
     timestamp = models.DateTimeField(default=timezone.now, help_text="When the message was sent")
     is_read = models.BooleanField(default=False, help_text="Whether the message has been read")
@@ -145,11 +153,13 @@ class Message(models.Model):
             models.Index(fields=['receiver', 'timestamp']),
             models.Index(fields=['receiver', 'is_read']),
             models.Index(fields=['edited']),
+            models.Index(fields=['parent_message', 'timestamp']),
         ]
     
     def __str__(self):
         edited_marker = " (edited)" if self.edited else ""
-        return f"Message from {self.sender.username} to {self.receiver.username} at {self.timestamp}{edited_marker}"
+        reply_marker = " (reply)" if self.parent_message else ""
+        return f"Message from {self.sender.username} to {self.receiver.username} at {self.timestamp}{edited_marker}{reply_marker}"
     
     def mark_as_read(self):
         """Mark the message as read"""
@@ -171,6 +181,150 @@ class Message(models.Model):
     def get_edit_history(self):
         """Get all edit history for this message"""
         return self.history.all().order_by('-edited_at')
+    
+    @property
+    def is_thread_root(self):
+        """Check if this message is the root of a thread"""
+        return self.parent_message is None
+    
+    @property
+    def reply_count(self):
+        """Get the total number of direct replies to this message"""
+        return self.replies.count()
+    
+    @property
+    def thread_depth(self):
+        """Calculate the depth of this message in the thread (0 for root messages)"""
+        depth = 0
+        current = self
+        while current.parent_message:
+            depth += 1
+            current = current.parent_message
+        return depth
+    
+    def get_thread_root(self):
+        """Get the root message of this thread"""
+        current = self
+        while current.parent_message:
+            current = current.parent_message
+        return current
+    
+    def get_all_replies(self):
+        """
+        Get all replies (direct and nested) to this message using efficient ORM queries.
+        Uses select_related and prefetch_related for optimization.
+        """
+        return Message.objects.filter(
+            parent_message=self
+        ).select_related(
+            'sender', 'receiver', 'parent_message'
+        ).prefetch_related(
+            'replies__sender',
+            'replies__receiver'
+        ).order_by('timestamp')
+    
+    def get_thread_messages(self):
+        """
+        Get all messages in this thread (root message and all nested replies).
+        Optimized query using select_related and prefetch_related.
+        """
+        root = self.get_thread_root()
+        
+        # Get all messages that belong to this thread
+        messages = Message.objects.filter(
+            models.Q(id=root.id) | models.Q(parent_message__isnull=False)
+        ).select_related(
+            'sender', 'receiver', 'parent_message'
+        ).prefetch_related(
+            'replies'
+        )
+        
+        # Filter to only include messages in this thread
+        thread_messages = []
+        checked_messages = {root.id}
+        to_check = [root]
+        
+        while to_check:
+            current = to_check.pop(0)
+            thread_messages.append(current)
+            for reply in current.replies.all():
+                if reply.id not in checked_messages:
+                    checked_messages.add(reply.id)
+                    to_check.append(reply)
+        
+        return thread_messages
+    
+    def get_conversation_participants(self):
+        """Get all unique users participating in this thread"""
+        thread_messages = self.get_thread_messages()
+        participants = set()
+        for msg in thread_messages:
+            participants.add(msg.sender)
+            participants.add(msg.receiver)
+        return list(participants)
+    
+    @classmethod
+    def get_threaded_conversation(cls, message_id):
+        """
+        Class method to retrieve a complete threaded conversation efficiently.
+        Uses advanced ORM techniques to minimize database queries.
+        
+        Args:
+            message_id: The ID of any message in the thread
+            
+        Returns:
+            Dictionary with root message and organized replies
+        """
+        try:
+            message = cls.objects.select_related(
+                'sender', 'receiver', 'parent_message'
+            ).prefetch_related(
+                'replies__sender',
+                'replies__receiver',
+                'replies__replies'
+            ).get(id=message_id)
+            
+            root = message.get_thread_root()
+            
+            # Recursively build the thread structure
+            def build_thread(msg):
+                return {
+                    'message': msg,
+                    'replies': [build_thread(reply) for reply in msg.replies.all()]
+                }
+            
+            return build_thread(root)
+            
+        except cls.DoesNotExist:
+            return None
+    
+    @classmethod
+    def get_user_conversations(cls, user, use_prefetch=True):
+        """
+        Get all conversation threads for a user with optimized queries.
+        
+        Args:
+            user: The User object
+            use_prefetch: Whether to use prefetch_related (default True)
+            
+        Returns:
+            QuerySet of root messages (threads) involving the user
+        """
+        base_query = cls.objects.filter(
+            models.Q(sender=user) | models.Q(receiver=user),
+            parent_message__isnull=True  # Only root messages
+        )
+        
+        if use_prefetch:
+            return base_query.select_related(
+                'sender', 'receiver'
+            ).prefetch_related(
+                'replies__sender',
+                'replies__receiver',
+                'replies__replies'
+            ).order_by('-timestamp')
+        
+        return base_query.order_by('-timestamp')
 
 
 class MessageHistory(models.Model):
