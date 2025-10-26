@@ -47,6 +47,7 @@ pipeline {
         // Checkout code from GitHub - bahyani/alx-backend-python
         git branch: 'main',
             url: 'https://github.com/bahyani/alx-backend-python.git',
+	    credentialsId: 'my-alx-github-credentials'
 
         script {
             echo "✅ Source code checked out successfully"
