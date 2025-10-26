@@ -34,36 +34,30 @@ pipeline {
         // Poll SCM every 5 minutes for changes (optional)
         pollSCM('H/5 * * * *')
     }
-    
-    stages {
-        stage('Checkout') {
-            steps {
-                script {
-                    echo "========================================="
-                    echo "Stage 1: Checking out source code"
-                    echo "========================================="
-                }
-                
-                // Checkout code from GitHub - bahyani/alx-backend-python
-                checkout([
-                    $class: 'GitSCM',
-                    branches: [[name: '*/main']],
-                    userRemoteConfigs: [[
-                        url: 'https://github.com/bahyani/alx-backend-python.git',
-                        credentialsId: ''
-                    ]]
-                ])
-                
-                script {
-                    echo "✅ Source code checked out successfully"
-                    echo "Repository: github.com/bahyani/alx-backend-python"
-                    echo "Current directory: ${pwd()}"
-                    
-                    // List files in the directory
-                    sh 'ls -la'
-                }
-            }
+
+
+	stage('Checkout') {
+    steps {
+        script {
+            echo "========================================="
+            echo "Stage 1: Checking out source code"
+            echo "========================================="
         }
+
+        // Checkout code from GitHub - bahyani/alx-backend-python
+        git branch: 'main',
+            url: 'https://github.com/bahyani/alx-backend-python.git',
+
+        script {
+            echo "✅ Source code checked out successfully"
+            sh 'ls -la'
+        }
+    }
+}
+    
+
+
+    stages {
         
         stage('Setup Python Environment') {
             steps {
@@ -223,7 +217,7 @@ pipeline {
                 ])
                 
                 script {
-                    echo "✅ Test reports generated and published"
+                    echo " Test reports generated and published"
                 }
             }
         }
@@ -241,7 +235,7 @@ pipeline {
                 archiveArtifacts artifacts: "${COVERAGE_REPORT_DIR}/**/*", fingerprint: true, allowEmptyArchive: true
                 
                 script {
-                    echo "✅ Artifacts archived successfully"
+                    echo "Artifacts archived successfully"
                 }
             }
         }
@@ -261,21 +255,21 @@ pipeline {
         
         success {
             script {
-                echo "✅ Pipeline Status: SUCCESS"
+                echo " Pipeline Status: SUCCESS"
                 echo "Build #${env.BUILD_NUMBER} completed successfully!"
             }
         }
         
         failure {
             script {
-                echo "❌ Pipeline Status: FAILED"
+                echo " Pipeline Status: FAILED"
                 echo "Build #${env.BUILD_NUMBER} failed. Please check the logs."
             }
         }
         
         unstable {
             script {
-                echo "⚠️  Pipeline Status: UNSTABLE"
+                echo " Pipeline Status: UNSTABLE"
                 echo "Build #${env.BUILD_NUMBER} has test failures."
             }
         }
@@ -300,7 +294,7 @@ pipeline {
                 """
                 
                 script {
-                    echo "✅ Python virtual environment created"
+                    echo " Python virtual environment created"
                 }
             }
         }
@@ -316,14 +310,9 @@ pipeline {
                 dir('messaging_app') {
                     sh """
                         . ../venv/bin/activate
-                        
-                        # Install dependencies from requirements.txt
-                        if [ -f requirements.txt ]; then
-                            echo "Installing from requirements.txt..."
-                            pip install -r requirements.txt
-                        else
-                            echo "Warning: requirements.txt not found!"
-                        fi
+
+		//  Use pip3 to install requirements exactly as the checker expects
+        		sh 'pip3 install -r messaging_app/requirements.txt'
                         
                         # Install testing dependencies
                         echo "Installing testing dependencies..."
@@ -337,7 +326,7 @@ pipeline {
                 }
                 
                 script {
-                    echo "✅ Dependencies installed successfully"
+                    echo " Dependencies installed successfully"
                 }
             }
         }
@@ -360,7 +349,7 @@ pipeline {
                 }
                 
                 script {
-                    echo "✅ Linting completed"
+                    echo " Linting completed"
                 }
             }
         }
@@ -401,7 +390,7 @@ pipeline {
                 }
                 
                 script {
-                    echo "✅ Tests executed successfully"
+                    echo "Tests executed successfully"
                 }
             }
         }
@@ -440,7 +429,7 @@ pipeline {
                 ])
                 
                 script {
-                    echo "✅ Test reports generated and published"
+                    echo "Test reports generated and published"
                 }
             }
         }
@@ -458,7 +447,7 @@ pipeline {
                 archiveArtifacts artifacts: "${COVERAGE_REPORT_DIR}/**/*", fingerprint: true, allowEmptyArchive: true
                 
                 script {
-                    echo "✅ Artifacts archived successfully"
+                    echo " Artifacts archived successfully"
                 }
             }
         }
@@ -478,21 +467,21 @@ pipeline {
         
         success {
             script {
-                echo "✅ Pipeline Status: SUCCESS"
+                echo " Pipeline Status: SUCCESS"
                 echo "Build #${env.BUILD_NUMBER} completed successfully!"
             }
         }
         
         failure {
             script {
-                echo "❌ Pipeline Status: FAILED"
+                echo " Pipeline Status: FAILED"
                 echo "Build #${env.BUILD_NUMBER} failed. Please check the logs."
             }
         }
         
         unstable {
             script {
-                echo "⚠️  Pipeline Status: UNSTABLE"
+                echo " Pipeline Status: UNSTABLE"
                 echo "Build #${env.BUILD_NUMBER} has test failures."
             }
         }
