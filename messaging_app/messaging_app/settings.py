@@ -142,5 +142,9 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "chats.permissions.IsParticipantOfConversation",
-    ]
+    ],
+
+    'DEFAULT_FILTER_BACKENDS': [
+        "django_filters.rest_framework.DjangoFilterBackend"
+    ],
 }

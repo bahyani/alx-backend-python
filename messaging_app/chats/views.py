@@ -6,7 +6,8 @@ from rest_framework.permissions import IsAuthenticated
 from .models import Message, Conversation
 from .permissions import IsOwner, IsParticipantOfConversation
 from .serializers import ConversationSerializer, MessageSerializer
-
+from .pagination import MessagePagination
+from .filters import MessageFilter
 
 # Create your views here.
 
@@ -41,6 +42,8 @@ class ConversationViewSet(viewsets.ModelViewSet):
 class MessageViewSet(viewsets.ModelViewSet):
     serializer_class = MessageSerializer
     permission_classes = [IsAuthenticated, IsParticipantOfConversation]
+    pagination_class = MessagePagination
+    filterset_class = MessageFilter
 
     def get_queryset(self):
         # Filter messages by conversation_id query param
