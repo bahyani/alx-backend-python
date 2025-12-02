@@ -93,3 +93,37 @@ class OffensiveLanguageMiddleware:
         else:
             ip = request.META.get("REMOTE_ADDR")
         return ip
+
+
+
+class RolePermissionMiddleware:
+    """
+    Allows only users with 'admin' or 'moderator' roles to perform certain actions.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        # Only apply to protected endpoints
+        protected_paths = [
+            "/api/messages/delete/",  # Example: admin-only delete endpoint
+            "/api/messages/manage/",  # Any other admin/moderator actions
+        ]
+
+        if any(request.path.startswith(path) for path in protected_paths):
+            user = request.user
+            if not user.is_authenticated:
+                return JsonResponse(
+                    {"error": "Authentication required"}, status=401
+                )
+
+            # Check user role
+            user_role = getattr(user, "role", None)  # assumes User model has 'role' field
+            if user_role not in ["admin", "moderator"]:
+                return JsonResponse(
+                    {"error": "Forbidden: insufficient permissions"}, status=403
+                )
+
+        response = self.get_response(request)
+        return response
