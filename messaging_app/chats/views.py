@@ -1,10 +1,12 @@
 from django.shortcuts import render
 
 from rest_framework import generics, viewsets
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from .models import Message, Conversation
-from .serializers import MessageSerializer
-from .permissions import IsOwner
+from .permissions import IsOwner, IsParticipantOfConversation
+from .serializers import ConversationSerializer, MessageSerializer
+
 
 # Create your views here.
 
@@ -35,16 +37,24 @@ class ConversationViewSet(viewsets.ModelViewSet):
         return Conversation.objects.filter(user1=self.request.user) | Conversation.objects.filter(user2=self.request.user)
 
 
+
 class MessageViewSet(viewsets.ModelViewSet):
-    queryset = Message.objects.all()
     serializer_class = MessageSerializer
-    permission_classes = [IsParticipantOfConversation]
+    permission_classes = [IsAuthenticated, IsParticipantOfConversation]
 
     def get_queryset(self):
-        return Message.objects.filter(conversation__user1=self.request.user) | Message.objects.filter(conversation__user2=self.request.user)
+        # Filter messages by conversation_id query param
+        conversation_id = self.request.query_params.get("conversation_id")
+        if conversation_id:
+            qs = Message.objects.filter(conversation_id=conversation_id)
+        else:
+            qs = Message.objects.all()
+        # Only include messages from conversations where user is a participant
+        return qs.filter(conversation__user1=self.request.user) | qs.filter(conversation__user2=self.request.user)
 
     def perform_create(self, serializer):
         conversation = serializer.validated_data["conversation"]
         if self.request.user not in [conversation.user1, conversation.user2]:
-            raise PermissionDenied("You are not a participant of this conversation.")
+            # Non-participants get HTTP_403_FORBIDDEN
+            raise PermissionDenied(detail="You are not a participant of this conversation.")
         serializer.save(user=self.request.user)
