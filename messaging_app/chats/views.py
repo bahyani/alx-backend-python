@@ -9,6 +9,7 @@ from .permissions import IsOwner, IsParticipantOfConversation
 from .serializers import ConversationSerializer, MessageSerializer
 from .pagination import MessagePagination
 from .filters import MessageFilter
+from rest_framework.pagination import PageNumberPagination
 
 # Create your views here.
 
@@ -34,6 +35,7 @@ class ConversationViewSet(viewsets.ModelViewSet):
     serializer_class = ConversationSerializer
     permission_classes = [IsParticipantOfConversation]
 
+
     def get_queryset(self):
         # Only return conversations where request.user is a participant
         return Conversation.objects.filter(user1=self.request.user) | Conversation.objects.filter(user2=self.request.user)
@@ -41,14 +43,15 @@ class ConversationViewSet(viewsets.ModelViewSet):
 
 
 class MessageViewSet(viewsets.ModelViewSet):
-        serializer_class = MessageSerializer
-        permission_classes = [IsAuthenticated, IsParticipantOfConversation]
-        pagination_class = MessagePagination
-        filter_backends = [DjangoFilterBackend]
-        filterset_class = MessageFilter
+    serializer_class = MessageSerializer
+    permission_classes = [IsAuthenticated, IsParticipantOfConversation]
+    pagination_class = MessagePagination
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = MessageFilter
+
 
     def get_queryset(self):
-        # Filter messages by conversation_id query param
+
         conversation_id = self.request.query_params.get("conversation_id")
         if conversation_id:
             qs = Message.objects.filter(conversation_id=conversation_id)
@@ -57,9 +60,17 @@ class MessageViewSet(viewsets.ModelViewSet):
         # Only include messages from conversations where user is a participant
         return qs.filter(conversation__user1=self.request.user) | qs.filter(conversation__user2=self.request.user)
 
+
+
     def perform_create(self, serializer):
         conversation = serializer.validated_data["conversation"]
         if self.request.user not in [conversation.user1, conversation.user2]:
             # Non-participants get HTTP_403_FORBIDDEN
             raise PermissionDenied(detail="You are not a participant of this conversation.")
         serializer.save(user=self.request.user)
+
+
+class MessageListView(generics.ListAPIView):
+    queryset = Message.objects.all()
+    serializer_class = MessageSerializer
+    pagination_class = MessagePagination

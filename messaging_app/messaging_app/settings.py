@@ -33,16 +33,12 @@ ALLOWED_HOSTS = []
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
-    'django.contrib.auth.model',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
-    'rest_framework.authtoken',
+    # 'rest_framework.authtoken',
     'chats'
 ]
 
@@ -82,12 +78,12 @@ WSGI_APPLICATION = 'messaging_app.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        #'NAME': BASE_DIR / 'db.sqlite3',
-        'NAME': os.getenv('DATABASE_NAME', 'messaging_app'),
-        'USER': os.getenv('DATABASE_USER', 'root'),
-        'PASSWORD': os.getenv('DATABASE_PASSWORD', ''),
-        'HOST': os.getenv('DATABASE_HOST', 'localhost'),
-        'PORT': os.getenv('DATABASE_PORT', '3306'),
+        'NAME': BASE_DIR / 'db.sqlite3',
+        # 'NAME': os.getenv('DATABASE_NAME', 'messaging_app'),
+        # 'USER': os.getenv('DATABASE_USER', 'root'),
+        # 'PASSWORD': os.getenv('DATABASE_PASSWORD', ''),
+        # 'HOST': os.getenv('DATABASE_HOST', 'localhost'),
+        # 'PORT': os.getenv('DATABASE_PORT', '3306'),
     }
 }
 
@@ -140,6 +136,7 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.BasicAuthentication'
 
     ],
+
     "DEFAULT_PERMISSION_CLASSES": [
         "chats.permissions.IsParticipantOfConversation",
     ],
@@ -147,11 +144,8 @@ REST_FRAMEWORK = {
     'DEFAULT_FILTER_BACKENDS': [
         "django_filters.rest_framework.DjangoFilterBackend"
     ],
-    'DEFAULT_PAGINATION_CLASS': [
-        'rest_framework.pagination.PageNumberPagination'
-    ],
 
+    'DEFAULT_PAGINATION_CLASS': 'chats.pagination.MessagePagination',  # string path
     'PAGE_SIZE': 20,
-
     'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend'],
 }
