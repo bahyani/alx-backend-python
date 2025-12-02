@@ -96,7 +96,7 @@ class OffensiveLanguageMiddleware:
 
 
 
-class RolePermissionMiddleware:
+class RolepermissionMiddleware:
     """
     Allows only users with 'admin' or 'moderator' roles to perform certain actions.
     """
