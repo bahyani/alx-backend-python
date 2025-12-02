@@ -1,4 +1,5 @@
 from django.shortcuts import render
+from django_filters.rest_framework import DjangoFilterBackend
 
 from rest_framework import generics, viewsets
 from rest_framework.exceptions import PermissionDenied
@@ -40,10 +41,11 @@ class ConversationViewSet(viewsets.ModelViewSet):
 
 
 class MessageViewSet(viewsets.ModelViewSet):
-    serializer_class = MessageSerializer
-    permission_classes = [IsAuthenticated, IsParticipantOfConversation]
-    pagination_class = MessagePagination
-    filterset_class = MessageFilter
+        serializer_class = MessageSerializer
+        permission_classes = [IsAuthenticated, IsParticipantOfConversation]
+        pagination_class = MessagePagination
+        filter_backends = [DjangoFilterBackend]
+        filterset_class = MessageFilter
 
     def get_queryset(self):
         # Filter messages by conversation_id query param
